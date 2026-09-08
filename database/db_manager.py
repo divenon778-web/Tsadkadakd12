@@ -1,7 +1,59 @@
 import aiosqlite
 import os
+import glob
+import re
+import urllib.request
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "trackin.db")
+
+
+def _download_from_gdrive(file_id, dest_path):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    resp = urllib.request.urlopen(req)
+    content_type = resp.headers.get("Content-Type", "")
+    if "text/html" in content_type:
+        body = resp.read().decode("utf-8", errors="ignore")
+        confirm_match = re.search(r'confirm=([0-9A-Za-z_-]+)', body)
+        if confirm_match:
+            url += f"&confirm={confirm_match.group(1)}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req)
+    with open(dest_path, "wb") as f:
+        while True:
+            chunk = resp.read(1024 * 1024)
+            if not chunk:
+                break
+            f.write(chunk)
+
+
+def reassemble_db_from_parts():
+    if os.path.exists(DB_PATH):
+        return
+    db_dir = os.path.dirname(DB_PATH)
+    part_files = glob.glob(os.path.join(db_dir, "trackin.db.part.*"))
+    if not part_files:
+        gdrive_ids = os.getenv("GDRIVE_DB_PARTS", "")
+        if gdrive_ids:
+            ids = [i.strip() for i in gdrive_ids.split(",") if i.strip()]
+            for idx, file_id in enumerate(ids):
+                suffix = chr(ord("a") + idx) if idx < 26 else f"{idx}"
+                dest = os.path.join(db_dir, f"trackin.db.part.{suffix}")
+                if not os.path.exists(dest):
+                    print(f"Downloading DB part {suffix} from Google Drive...")
+                    _download_from_gdrive(file_id, dest)
+            part_files = glob.glob(os.path.join(db_dir, "trackin.db.part.*"))
+    if not part_files:
+        return
+    def sort_key(path):
+        match = re.search(r"\.part\.(\w+)$", path)
+        return match.group(1) if match else ""
+    part_files.sort(key=sort_key)
+    with open(DB_PATH, "wb") as out:
+        for pf in part_files:
+            with open(pf, "rb") as f:
+                out.write(f.read())
+    print(f"Assembled trackin.db from {len(part_files)} parts")
 
 
 async def get_db():

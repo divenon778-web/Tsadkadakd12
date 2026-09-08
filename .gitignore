@@ -1,5 +1,5 @@
 .env
 trackin.db
+trackin.db.part.*
 __pycache__/
 *.pyc
-trackin.db 
