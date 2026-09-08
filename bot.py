@@ -28,4 +28,22 @@ if __name__ == "__main__":
     if not TOKEN:
         print("ERROR: DISCORD_TOKEN not set in .env")
         exit(1)
-    bot.run(TOKEN)
+
+    async def main():
+        delay = 30
+        while True:
+            try:
+                await bot.start(TOKEN)
+            except discord.errors.HTTPException as e:
+                if "429" in str(e):
+                    print(f"Rate limited. Retrying in {delay}s...")
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, 300)
+                else:
+                    raise
+            except Exception as e:
+                print(f"Error: {e}. Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 300)
+
+    asyncio.run(main())
