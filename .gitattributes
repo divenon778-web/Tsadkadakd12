@@ -1,2 +1,1 @@
 *.db filter=lfs diff=lfs merge=lfs -text
-trackin.db.part.* filter=lfs diff=lfs merge=lfs -text
