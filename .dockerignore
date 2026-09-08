@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+trackin.db
+trackin.db.part.*
+__pycache__
+*.pyc
+trackin-bot/
+render.yaml
+Procfile
