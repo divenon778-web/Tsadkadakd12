@@ -18,6 +18,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
+    print(f"Bot connected as {bot.user} (ID: {bot.user.id})")
+    print(f"Guilds: {len(bot.guilds)}")
     reassemble_db_from_parts()
     await init_db()
     await bot.load_extension("cogs.search")
@@ -25,12 +27,15 @@ async def on_ready():
 
 
 if __name__ == "__main__":
+    print(f"DISCORD_TOKEN set: {bool(TOKEN)}")
+    print(f"CHANNEL_ID: {CHANNEL_ID}")
+
     if not TOKEN:
-        print("ERROR: DISCORD_TOKEN not set in .env")
+        print("ERROR: DISCORD_TOKEN not set!")
         exit(1)
 
     async def main():
-        delay = 30
+        delay = 10
         while True:
             try:
                 await bot.start(TOKEN)
@@ -40,6 +45,7 @@ if __name__ == "__main__":
                     await asyncio.sleep(delay)
                     delay = min(delay * 2, 300)
                 else:
+                    print(f"HTTP Error: {e}")
                     raise
             except Exception as e:
                 print(f"Error: {e}. Retrying in {delay}s...")
