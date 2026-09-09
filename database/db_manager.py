@@ -1,4 +1,6 @@
 import aiosqlite
+import gzip
+import io
 import os
 import glob
 import re
@@ -27,8 +29,24 @@ def _download_from_gdrive(file_id, dest_path):
             f.write(chunk)
 
 
+def _try_decompress(db_path):
+    with open(db_path, "rb") as f:
+        header = f.read(2)
+    if header == b'\x1f\x8b':
+        print("Detected gzipped database, decompressing...")
+        with open(db_path, "rb") as f:
+            compressed = f.read()
+        decompressed = gzip.decompress(compressed)
+        with open(db_path, "wb") as f:
+            f.write(decompressed)
+        print(f"Decompressed to {len(decompressed) / (1024*1024):.1f} MB")
+        return True
+    return False
+
+
 def reassemble_db_from_parts():
     if os.path.exists(DB_PATH):
+        _try_decompress(DB_PATH)
         return True
     db_dir = os.path.dirname(DB_PATH)
     part_files = glob.glob(os.path.join(db_dir, "trackin.db.part.*"))
@@ -61,6 +79,7 @@ def reassemble_db_from_parts():
             with open(pf, "rb") as f:
                 out.write(f.read())
     print(f"Assembled trackin.db from {len(part_files)} parts")
+    _try_decompress(DB_PATH)
     return True
 
 
