@@ -20,9 +20,19 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"Bot connected as {bot.user} (ID: {bot.user.id})")
     print(f"Guilds: {len(bot.guilds)}")
-    reassemble_db_from_parts()
-    await init_db()
-    await bot.load_extension("cogs.search")
+    try:
+        reassemble_db_from_parts()
+    except Exception as e:
+        print(f"DB reassemble skip: {e}")
+    try:
+        await init_db()
+    except Exception as e:
+        print(f"DB init error: {e}")
+    try:
+        await bot.load_extension("cogs.search")
+        print("Cog loaded successfully")
+    except Exception as e:
+        print(f"Cog load error: {e}")
     print(f"Trackin is online as {bot.user}")
 
 

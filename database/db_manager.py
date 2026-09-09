@@ -10,7 +10,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "trackin.db")
 def _download_from_gdrive(file_id, dest_path):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    resp = urllib.request.urlopen(req)
+    resp = urllib.request.urlopen(req, timeout=30)
     content_type = resp.headers.get("Content-Type", "")
     if "text/html" in content_type:
         body = resp.read().decode("utf-8", errors="ignore")
@@ -18,7 +18,7 @@ def _download_from_gdrive(file_id, dest_path):
         if confirm_match:
             url += f"&confirm={confirm_match.group(1)}"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            resp = urllib.request.urlopen(req)
+            resp = urllib.request.urlopen(req, timeout=30)
     with open(dest_path, "wb") as f:
         while True:
             chunk = resp.read(1024 * 1024)
@@ -29,7 +29,7 @@ def _download_from_gdrive(file_id, dest_path):
 
 def reassemble_db_from_parts():
     if os.path.exists(DB_PATH):
-        return
+        return True
     db_dir = os.path.dirname(DB_PATH)
     part_files = glob.glob(os.path.join(db_dir, "trackin.db.part.*"))
     if not part_files:
@@ -37,14 +37,21 @@ def reassemble_db_from_parts():
         if gdrive_ids:
             ids = [i.strip() for i in gdrive_ids.split(",") if i.strip()]
             for idx, file_id in enumerate(ids):
+                if not file_id:
+                    continue
                 suffix = chr(ord("a") + idx) if idx < 26 else f"{idx}"
                 dest = os.path.join(db_dir, f"trackin.db.part.{suffix}")
                 if not os.path.exists(dest):
                     print(f"Downloading DB part {suffix} from Google Drive...")
-                    _download_from_gdrive(file_id, dest)
+                    try:
+                        _download_from_gdrive(file_id, dest)
+                    except Exception as e:
+                        print(f"Failed to download part {suffix}: {e}")
+                        return False
             part_files = glob.glob(os.path.join(db_dir, "trackin.db.part.*"))
     if not part_files:
-        return
+        print("No DB file or parts found. Starting with empty database.")
+        return False
     def sort_key(path):
         match = re.search(r"\.part\.(\w+)$", path)
         return match.group(1) if match else ""
@@ -54,6 +61,7 @@ def reassemble_db_from_parts():
             with open(pf, "rb") as f:
                 out.write(f.read())
     print(f"Assembled trackin.db from {len(part_files)} parts")
+    return True
 
 
 async def get_db():
